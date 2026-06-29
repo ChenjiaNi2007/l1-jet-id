@@ -67,7 +67,8 @@ def find_nearest(array: np.ndarray, value: float):
 
 def roc_curves(outdir: str, y_pred: np.ndarray, y_test: np.ndarray):
     """Plot the ROC curves for the labels of the jet data set."""
-    labels = ["Gluon", "Quark", "W", "Z", "Top"]
+    labels = (["QCD", "Top"] if y_pred.shape[1] == 2
+              else ["Gluon", "Quark", "W", "Z", "Top"])
     cols = ["#648FFF", "#785EF0", "#DC267F", "#FE6100", "#FFB000"]
     tpr_baseline = np.linspace(0.025, 0.99, 100)
     fprs = []
@@ -114,7 +115,8 @@ def roc_curves_uncert(
     outdir: str,
 ):
     """Plots ROC curves given fprs and tprs for each class."""
-    labels = ["Gluon", "Quark", "W", "Z", "Top"]
+    labels = (["QCD", "Top"] if len(fprs) == 2
+              else ["Gluon", "Quark", "W", "Z", "Top"])
     cols = ["#648FFF", "#785EF0", "#DC267F", "#FE6100", "#FFB000"]
     tpr_baseline = np.linspace(0.025, 0.99, 100)
     for idx, label in enumerate(labels):
@@ -145,7 +147,8 @@ def roc_curves_uncert(
 
 def dnn_output(outdir: str, y_pred: np.ndarray):
     """Plots the output of the last part (fc) of the interaction network."""
-    labels = ["Gluon", "Quark", "W", "Z", "Top"]
+    labels = (["QCD", "Top"] if y_pred.shape[1] == 2
+              else ["Gluon", "Quark", "W", "Z", "Top"])
     cols = ["#648FFF", "#785EF0", "#DC267F", "#FE6100", "#FFB000"]
     bins = np.linspace(0.0, 1.0, 20)
     for idx, label in enumerate(labels):

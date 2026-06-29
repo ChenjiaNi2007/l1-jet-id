@@ -32,7 +32,13 @@ def make_output_directory(location: str, outdir: str) -> str:
 def import_data(config: dict, train: bool):
     """Imports the jet data, ready for training."""
     print(tcols.OKGREEN + "Importing data... " + tcols.ENDC, end="")
-    jet_data = data.HLS4MLData150(**config, train=train)
+    dataset_type = config.pop("dataset_type", "hls4ml150")
+    if dataset_type == "toptag":
+        from fast_jetclass.data.toptag_data import TopTagData
+
+        jet_data = TopTagData(**config, train=train)
+    else:
+        jet_data = data.HLS4MLData150(**config, train=train)
 
     print(tcols.OKGREEN, end="")
     print("training data imported!" if train else "validation data imported!")

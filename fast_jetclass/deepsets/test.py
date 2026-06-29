@@ -31,6 +31,12 @@ def main(args):
     hyperparams = util.load_hyperparameter_file(args.root_dir)
 
     # The data configuration should be the same for all kfolds, so take it from one.
+    # Optional held-out override: point the (train=False) data at a different h5 file
+    # (e.g. the held-out test.h5) without editing the saved training hyperparameters.
+    # The train-fit normalisation pkl is still reused, so there is no leakage.
+    if getattr(args, "h5_path", None):
+        hyperparams["data_hyperparams"]["h5_path"] = args.h5_path
+        print(tcols.OKCYAN + f"Overriding eval h5_path -> {args.h5_path}" + tcols.ENDC)
     valid_data = util.import_data(hyperparams["data_hyperparams"], train=False)
     valid_data.shuffle_constituents(args.seed)
 

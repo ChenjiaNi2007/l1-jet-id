@@ -11,6 +11,9 @@ parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFo
 parser.add_argument("--root_dir", type=str, help="Model root directory path.")
 parser.add_argument("--gpu", type=str, default="0", help="GPU to run on.")
 parser.add_argument("--seed", type=int, default=123, help="Seed for shuffling const.")
+parser.add_argument("--h5_path", type=str, default=None,
+                    help="Optional held-out h5 to evaluate on (overrides the saved "
+                         "data_hyperparams.h5_path, e.g. the toptag test.h5).")
 args = parser.parse_args()
 
 os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu

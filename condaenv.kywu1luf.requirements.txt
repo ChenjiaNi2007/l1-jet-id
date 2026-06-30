@@ -1,0 +1,3 @@
+tensorflow[and-cuda]==2.14
+tensorflow-model-optimization==0.8.0
+qkeras==0.9

@@ -41,6 +41,7 @@ def main(args, synth_config: dict):
     valid_data.y = valid_data.y[:6000]
     valid_data.shuffle_constituents(args.seed)
     model = import_model(args.model_dir, hyperparams)
+    model = strip_trailing_softmax(model)
 
     print(tcols.OKGREEN + "\nCONFIGURING SYNTHESIS\n" + tcols.ENDC)
     hls4ml_config = hls4ml.utils.config_from_keras_model(
@@ -90,6 +91,33 @@ def main(args, synth_config: dict):
     print(f"Accuracy model: {acc:.3f}")
     print(f"Accuracy synthed model: {acc_synth:.3f}")
     print(f"Accuracy ratio: {acc_synth/acc:.3f}")
+
+
+def strip_trailing_softmax(model: keras.Model):
+    """Drop a trailing softmax so the FPGA firmware emits raw logits.
+
+    hls4ml synthesizes softmax into exp/inv lookup tables (`init_exp_table`), which on
+    a wide fixed-point output blows up C-synthesis (II-violation scheduler thrash) and
+    triggered the `softmax_config` codegen case bug. We don't need it: softmax is
+    monotonic in the 2-class score, the codebase already applies it in Python
+    (`run_inference`), accuracy is argmax-based (softmax-invariant), and nanoPELICAN
+    likewise outputs a single logit -- so a logit-output firmware is the apples-to-apples
+    comparison. No-op if the model already ends in a non-softmax (e.g. Dense) layer.
+    """
+    last = model.layers[-1]
+    name = last.name.lower()
+    cls = last.__class__.__name__.lower()
+    act = getattr(last, "activation", None)
+    act_name = getattr(act, "__name__", "") if act is not None else ""
+    is_softmax = "softmax" in cls or "softmax" in name or act_name == "softmax"
+    if not is_softmax:
+        print(tcols.OKGREEN + f"Output layer '{last.name}' is not softmax; "
+              f"synthesizing as-is." + tcols.ENDC)
+        return model
+    stripped = keras.Model(model.inputs, last.input, name=model.name + "_logits")
+    print(tcols.OKGREEN + f"Stripped trailing softmax '{last.name}' for synthesis "
+          f"(firmware emits logits)." + tcols.ENDC)
+    return stripped
 
 
 def import_model(model_dir: str, hyperparams: dict):

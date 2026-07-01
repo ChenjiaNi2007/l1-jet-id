@@ -2,8 +2,8 @@
 outdir: 'deepsets_8bit_20const_toptag'
 data_hyperparams:
   dataset_type: "toptag"
-  h5_path: "../../PELICAN-nano/data/sample_data/train.h5"
-  root: '../data/jetid_toptag'
+  h5_path: "../../PELICAN-nano/data/toptag/train.h5"
+  root: '../data/jetid_toptagset'
   nconst: 20
   feats: "ptetaphi"
   norm: "robust"

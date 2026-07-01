@@ -18,6 +18,10 @@ dependencies:
   - pip
 
   - pip:
-    - tensorflow-cpu==2.14
+    # GPU build: [and-cuda] pulls the nvidia-*-cu11 CUDA runtime wheels (~5GB download).
+    # If `conda env create` dies mid-download (JupyterHub pod cull), don't recreate the
+    # env — activate it and re-run `pip install 'tensorflow[and-cuda]==2.14'`; the pip
+    # cache resumes. Runs fine on CPU-only machines too (wheels are just unused).
+    - tensorflow[and-cuda]==2.14
     - tensorflow-model-optimization==0.8.0
     - qkeras==0.9

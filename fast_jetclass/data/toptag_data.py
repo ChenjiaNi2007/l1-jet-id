@@ -36,6 +36,23 @@ def fourmom_to_ptetaphirel(Pmu: np.ndarray) -> np.ndarray:
     return out.astype(np.float32)
 
 
+def _select_leading_pt(Pmu, nconst):
+    """Keep the nconst highest-pT constituents per jet (pT^2 = px^2 + py^2), padding
+    with zeros if fewer are available.
+
+    Matches nanoPELICAN's leading-``--nobj`` cap so both models see the same particles.
+    Zero-padded slots (all-zero 4-vectors) have pT=0 and sort last. A no-op when Pmu is
+    already pT-sorted and exactly nconst-wide; the DeepSet is permutation-invariant so any
+    reordering among the kept constituents is irrelevant.
+    """
+    n = Pmu.shape[1]
+    if n < nconst:
+        return np.pad(Pmu, ((0, 0), (0, nconst - n), (0, 0)))
+    pt2 = Pmu[..., 1] ** 2 + Pmu[..., 2] ** 2            # (njets, n)
+    idx = np.argsort(-pt2, axis=1)[:, :nconst]            # leading-nconst per jet
+    return np.take_along_axis(Pmu, idx[..., None], axis=1)
+
+
 class TopTagData(HLS4MLData150):
     """Binary top-tagging data from a PELICAN-nano h5 file.
 
@@ -59,13 +76,12 @@ class TopTagData(HLS4MLData150):
             Pmu = np.asarray(f["Pmu"])  # (njets, 20, 4) in (E, px, py, pz)
             y = np.asarray(f["is_signal"]).astype(int)
 
-        x = fourmom_to_ptetaphirel(Pmu)  # (njets, 20, 3)
-
-        # Restrict / pad the constituent axis to nconst (h5 is 20-wide).
-        if self.nconst <= x.shape[1]:
-            x = x[:, : self.nconst, :]
-        else:
-            x = np.pad(x, ((0, 0), (0, self.nconst - x.shape[1]), (0, 0)))
+        # Keep the leading-nconst constituents by pT BEFORE building features, so the
+        # DeepSet sees the same particles nanoPELICAN's --nobj cap keeps (leading pT).
+        # Works for any Pmu width (e.g. toptag is 200-wide, sample_data was 20-wide) and
+        # is a no-op when Pmu is already pT-sorted and exactly nconst-wide.
+        Pmu = _select_leading_pt(Pmu, self.nconst)  # (njets, nconst, 4)
+        x = fourmom_to_ptetaphirel(Pmu)  # jet axis from the kept nconst; (njets, nconst, 3)
 
         self.y = np.eye(2, dtype=np.float32)[y]  # binary one-hot, argmax-compatible
 

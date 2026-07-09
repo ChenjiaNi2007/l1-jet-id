@@ -7,13 +7,13 @@ LayerName:
     Precision: "ap_fixed<12, 4, AP_RND, AP_SAT>"
   phi1:
     ParallelizationFactor: 1
-    ReuseFactor: 2
+    ReuseFactor: 5
     Strategy: "Latency"
   phi2:
     ParallelizationFactor: 1
-    ReuseFactor: 2
+    ReuseFactor: 5
     Strategy: "Latency"
   phi3:
     ParallelizationFactor: 1
-    ReuseFactor: 2
+    ReuseFactor: 5
     Strategy: "Latency"

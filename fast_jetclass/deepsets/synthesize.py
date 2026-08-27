@@ -74,7 +74,8 @@ def main(args, synth_config: dict):
         output_dir=synthesis_dir,
         part="xcvu13p-flga2577-2-e",
         io_type="io_parallel",
-        backend='Vitis'
+        backend='Vitis',
+        clock_uncertainty="12.5%",
     )
 
     hls_model.compile()

@@ -10,6 +10,7 @@ import contextlib
 import numpy as np
 import tensorflow as tf
 import hls4ml
+import hls4ml.model.profiling  # noqa: F401 -- not pulled in by 'import hls4ml'
 from tensorflow_model_optimization.python.core.sparsity.keras import pruning_wrapper
 from tensorflow_model_optimization.sparsity.keras import strip_pruning
 import qkeras
@@ -41,6 +42,7 @@ def main(args, synth_config: dict):
     valid_data.y = valid_data.y[:6000]
     valid_data.shuffle_constituents(args.seed)
     model = import_model(args.model_dir, hyperparams)
+    model = functionalize_for_synth(model, hyperparams, valid_data)
     model = strip_trailing_softmax(model)
 
     print(tcols.OKGREEN + "\nCONFIGURING SYNTHESIS\n" + tcols.ENDC)
@@ -93,6 +95,28 @@ def main(args, synth_config: dict):
     print(f"Accuracy ratio: {acc_synth/acc:.3f}")
 
 
+def functionalize_for_synth(model, hyperparams, valid_data):
+    """Rebuild the trained subclassed model as the Functional synth twin.
+
+    hls4ml only parses Functional/Sequential graphs, the synthparams YAML targets
+    the synth architecture's layer names (input_layer/phi1..3), and the raw
+    tf.reduce_mean in the subclassed call() must become GlobalAveragePooling1D.
+    deepsets_synth.deepsets_invariant_synth is exactly that twin; the weightful
+    layers (3x phi QDense, rho QDense, output Dense) match one-to-one, so a
+    positional set_weights transfer is exact.
+    """
+    from fast_jetclass.deepsets.deepsets_synth import deepsets_invariant_synth
+
+    nconst, nfeats = valid_data.x.shape[1], valid_data.x.shape[2]
+    synth = deepsets_invariant_synth(
+        input_size=(1, nconst, nfeats), **hyperparams["model_hyperparams"]
+    )
+    synth.set_weights(model.get_weights())
+    print(tcols.OKGREEN + "Rebuilt trained model as Functional synth architecture; "
+          f"{len(model.get_weights())} weight tensors transferred." + tcols.ENDC)
+    return synth
+
+
 def strip_trailing_softmax(model: keras.Model):
     """Drop a trailing softmax so the FPGA firmware emits raw logits.
 
@@ -113,6 +137,10 @@ def strip_trailing_softmax(model: keras.Model):
     if not is_softmax:
         print(tcols.OKGREEN + f"Output layer '{last.name}' is not softmax; "
               f"synthesizing as-is." + tcols.ENDC)
+        if model.__class__.__name__ not in ("Functional", "Sequential"):
+            # hls4ml only parses Functional/Sequential graphs; rebuild the
+            # subclassed model's call graph functionally (same layers/weights).
+            model = keras.Model(model.inputs, model.outputs, name=model.name + "_graph")
         return model
     stripped = keras.Model(model.inputs, last.input, name=model.name + "_logits")
     print(tcols.OKGREEN + f"Stripped trailing softmax '{last.name}' for synthesis "
